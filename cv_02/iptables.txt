@@ -1,0 +1,6 @@
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 2222 -j DNAT --to-destination 10.20.11.24:22
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 8080 -j DNAT --to-destination 10.20.11.24:80
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 2223 -j DNAT --to-destination 10.20.21.218:22
+sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 8081 -j DNAT --to-destination 10.20.21.218:22
+
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
