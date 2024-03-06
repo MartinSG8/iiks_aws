@@ -1,97 +1,118 @@
 AWSTemplateFormatVersion: 2010-09-09
-
 Description: Cvicenie 2 - EC2 instances & auto-scaling & load-balancing
-
-###########################################################################
-# Useful CloudFormation docs
-###########################################################################
-# functions:         https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html
-# pseudo parameters: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/pseudo-parameter-reference.html
-# pseudo attributes: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-product-attribute-reference.html
-# template sections: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html
-###########################################################################
-
 Parameters:
   Project:
     Description: Project
     Type: String
     Default: FRI
-
   Environment:
     Description: Environment
     Type: String
     Default: lab
-
   NetworkStackName:
     Description: Name of parent network CloudFormation stack
     Type: String
     Default: BasicNetwork
-
   OurPublicIp:
     Description: Our source public IPv4 address
     Type: String
-    Default: '158.193.138.31/32'
-
+    Default: 158.193.138.31/32
   ImageId:
     Description: AMI (Amazon Machine Image) ID
     Type: String
-    # more info: https://docs.amazonaws.cn/en_us/AWSEC2/latest/UserGuide/finding-an-ami.html
-    # list of usable AMIs can be found in AWS console -> EC2 -> AMI Catalog
-    # Amazon Linux 2 (HVM), Kernel 5.10, SSD Volume Type, us-east-1
     Default: ami-07761f3ae34c4478d
-
   InstanceType:
     Description: Instance type (number of vCPUs, memory, bandwidth, etc.)
     Type: String
-    # "t3" family = General purpose, Intel Xeon Platinum 8000 series; "medium" size = 2 vCPUs, 4 GB memory
-    # more info: https://aws.amazon.com/ec2/instance-types/t3/
     Default: t3.medium
-
   IamInstanceProfileName:
     Description: Instance IAM profile name
     Type: String
-    # it's unique in each account. can be found in IAM service as AmazonSSMRoleForInstancesQuickSetup (part of Instance profile ARN)
-    # e.g. c76725a1578383l3622172t1w333290784692-SsmRoleInstanceProfile-apue5UBzE6mA
-
-
 Resources:
-###########################################################################
-### Part 1 - security groups (firewall) & SSH key pair
-###########################################################################
-
   SecurityGroupForPublicInstances:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: policy for public aws EC2 instances
       SecurityGroupIngress:
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: !Ref OurPublicIp, Description: 'HTTP Public VPC' }
-        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref OurPublicIp, Description: 'SSH Public VPC' }
-        - { IpProtocol: tcp, FromPort: 2222, ToPort: 2223, CidrIp: !Ref OurPublicIp, Description: 'SSH Public VPC' }
-        - { IpProtocol: tcp, FromPort: 8080, ToPort: 8081, CidrIp: !Ref OurPublicIp, Description: 'SSH Public VPC' }
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref OurPublicIp
+          Description: HTTP Public VPC
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref OurPublicIp
+          Description: SSH Public VPC
+        - IpProtocol: tcp
+          FromPort: 2222
+          ToPort: 2223
+          CidrIp: !Ref OurPublicIp
+          Description: SSH Public VPC
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8081
+          CidrIp: !Ref OurPublicIp
+          Description: SSH Public VPC
       SecurityGroupEgress:
-        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: 'HTTPS Public VPC' }
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: 'HTTP Public VPC' }
-        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: { Fn::ImportValue: !Sub '${NetworkStackName}-VpcCidr' }, Description: 'SSH - VPC' }
-      VpcId:
-        Fn::ImportValue: !Sub '${NetworkStackName}-VpcId'
-  
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS Public VPC
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP Public VPC
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !ImportValue
+            Fn::Sub: ${NetworkStackName}-VpcCidr
+          Description: SSH - VPC
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
   SecurityGroupForPrivateInstances:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: policy for private aws EC2 instances
-      VpcId:
-        Fn::ImportValue: !Sub '${NetworkStackName}-VpcId'
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
       SecurityGroupIngress:
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: !Ref OurPublicIp, Description: 'HTTP Private VPC' }
-        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref OurPublicIp, Description: 'SSH Private VPC' }
-        - { IpProtocol: tcp, FromPort: 2222, ToPort: 2223, CidrIp: !Ref OurPublicIp, Description: 'HTTP Private VPC' }
-        - { IpProtocol: tcp, FromPort: 8080, ToPort: 8081, CidrIp: !Ref OurPublicIp, Description: 'SSH Private VPC' }
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref OurPublicIp
+          Description: HTTP Private VPC
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref OurPublicIp
+          Description: SSH Private VPC
+        - IpProtocol: tcp
+          FromPort: 2222
+          ToPort: 2223
+          CidrIp: !Ref OurPublicIp
+          Description: HTTP Private VPC
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8081
+          CidrIp: !Ref OurPublicIp
+          Description: SSH Private VPC
       SecurityGroupEgress:
-        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: 'HTTPS Private VPC' }
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: 'HTTP Private VPC' }
-  
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS Private VPC
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP Private VPC
   SSHKeyPair:
-    Type: 'AWS::EC2::KeyPair'
+    Type: AWS::EC2::KeyPair
     Properties:
       KeyFormat: pem
       KeyName: SSHKeyPair
@@ -99,38 +120,29 @@ Resources:
       Tags:
         - Key: Name
           Value: SSHKeyPair
-    
-  
-###########################################################################
-### Part 2- static EC2 instances
-###########################################################################
-
-  # AWS docs: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance.html
   PublicInstanceA:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      SubnetId:
-        Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnetAId"
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      SubnetId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-PublicSubnetAId
       SecurityGroupIds:
         - !Ref SecurityGroupForPublicInstances
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref SSHKeyPair
       IamInstanceProfile: !Ref IamInstanceProfileName
-      UserData:
-        Fn::Base64: !Sub
+      UserData: !Base64
+        Fn::Sub:
           - |
             #!/bin/bash
-
             echo 1 > /proc/sys/net/ipv4/ip_forward
-
             # iptables have to be set manually on instance, since IP of Private Instance will change every deployment
             # of course it can be done dynamically via AWS CLI :-) but it's out of scope of this lab
-
             echo "Hello world."
             echo "This instance was created in environment ${Environment} in region ${AWS::Region}"
-
           - Environment: !Ref Environment
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
@@ -145,36 +157,31 @@ Resources:
           Value: !Ref Environment
         - Key: Project
           Value: !Ref Project
-
-
   PrivateInstanceA:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      SubnetId:
-        Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetAId"
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      SubnetId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-PrivateSubnetAId
       SecurityGroupIds:
         - !Ref SecurityGroupForPrivateInstances
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref SSHKeyPair
       IamInstanceProfile: !Ref IamInstanceProfileName
-      UserData:
-        Fn::Base64: !Sub
+      UserData: !Base64
+        Fn::Sub:
           - |
             #!/bin/bash
-
             yum -y update
             yum -y install httpd
-
             systemctl enable httpd
             systemctl start httpd
-
             echo "Hello world."
             echo "This instance was created in environment ${Environment} in region ${AWS::Region}"
-
-          - Environment:
-              !Ref Environment
+          - Environment: !Ref Environment
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -188,33 +195,30 @@ Resources:
           Value: !Ref Environment
         - Key: Project
           Value: !Ref Project
-
   PrivateInstanceB:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
-      SubnetId:
-        Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetBId"
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      SubnetId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-PrivateSubnetBId
       SecurityGroupIds:
         - !Ref SecurityGroupForPrivateInstances
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref SSHKeyPair
       IamInstanceProfile: !Ref IamInstanceProfileName
-      UserData:
-        Fn::Base64: !Sub
+      UserData: !Base64
+        Fn::Sub:
           - |
             #!/bin/bash
-
             yum -y update
             yum -y install httpd
-
             systemctl enable httpd
             systemctl start httpd
-
             echo "Hello world."
             echo "This instance was created in environment ${Environment} in region ${AWS::Region}"
-
           - Environment: !Ref Environment
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
