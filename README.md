@@ -2,3 +2,10 @@
 
 Subject teaches AWS Cloudformation service. It is used to create infrastructure in AWS Cloude. It uses YAML or JSON languages. We use YAML.
 
+```mermaid
+classDiagram
+
+class Duck {
+    +char* a
+}
+```

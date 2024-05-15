@@ -1,0 +1,71 @@
+heat_template_version: 2015-04-30
+description: Simple template to deploy a single compute instance
+
+parameters:
+  external_network_name:
+    type: string
+    description: Name of the external network
+    default: ext-net-154
+  internal_network_name:
+    type: string
+    description: Name of the internal network
+    default: net-is#
+  internal_subnet_name:
+    type: string
+    description: Name of the internal subnet
+    default: subnet-is#
+  availability_zone:
+    type: string
+    description: Availability zone for the VMs
+    default: nova
+  flavor:
+    type: string
+    description: Flavor for the VMs
+    default: 1c05r8d
+  image:
+    type: string
+    description: Image for the VMs
+    default: debian-12-kis
+  security_group:
+    type: string
+    description: Security zone of VMs
+    default: xxx
+
+resources:
+  new_net:
+    type: OS::Neutron::Net
+
+  new_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: external_network_name }
+      cidr: "10.8.1.0/24"
+      dns_nameservers: [ "8.8.8.8", "8.8.4.4" ]
+      ip_version: 4
+  properties:
+      name: { get_param: internal_network_name }
+
+  internal_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: internal_network }
+      cidr: "10.10.10.0/24"
+      name: { get_param: internal_subnet_name }
+
+  internal_server:
+    type: OS::Nova::Server
+    properties:
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      networks:
+        - network: { get_resource: internal_network }
+      availability_zone: { get_param: availability_zone }
+
+  external_server:
+    type: OS::Nova::Server
+    properties:
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      networks:
+        - network: { get_param: external_network_name }
+      availability_zone: { get_param: availability_zone }

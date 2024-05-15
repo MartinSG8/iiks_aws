@@ -1,0 +1,94 @@
+heat_template_version: ocata
+
+description: |
+  Simple Heat template to deploy two instances in the same network
+
+parameters:
+
+  internal_network_name:
+    type: string
+    description: Name of the external network
+    default: net-is
+  internal_subnet_cidr:
+    type: string
+    description: CIDR for the subnet
+    default: 192.168.1.0/24
+  shared:
+    type: boolean
+    description: Boolean indicating whether the network is shared or not
+    default: false
+  availability_zone:
+    type: string
+    description: Name of the availability zone
+    default: nova
+  flavor:
+    type: string
+    description: Flavor for the instances
+    default: 1c05r1d
+  image:
+    type: string
+    description: Image to use for the instances
+    default: cirros
+  security_group:
+    type: string
+    description: Name of the security group
+    default: default
+
+resources:
+  # creation of intrenal network
+  the_internal_network:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: internal_network_name }
+      shared: { get_param: shared }
+
+  the_internal_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: the_internal_network }
+      cidr: { get_param: internal_subnet_cidr }
+
+  sec-group-fri:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: ps3_security-group_SSH+DNS+SIP
+      rules:
+        - remote_ip_prefix: 158.193.0.0/16
+          protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - remote_ip_prefix: 158.193.0.0/16
+          protocol: tcp
+          port_range_min: 80
+          port_range_max: 80
+        - remote_ip_prefix: 158.193.0.0/16
+          protocol: tcp
+          port_range_min: 443
+          port_range_max: 443
+
+  # internal instance
+  instance2:
+    type: OS::Nova::Server
+    properties:
+      name: instance2
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      networks:
+        - network: { get_resource: the_internal_network }
+      security_groups:
+        - { get_resource: sec-group-fri }
+  my_keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: my_keypair
+      save_private_key: true
+
+
+outputs:
+  private_key:
+    description: Private SSH key for the newly created key pair
+    value: { get_attr: [my_keypair, private_key] }
+  instance2_ip:
+    description: IP address of instance2
+    value: { get_attr: [instance2, first_address] }

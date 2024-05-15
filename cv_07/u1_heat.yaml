@@ -1,0 +1,31 @@
+heat_template_version: 2015-04-30
+description: Simple template to deploy a single compute instance
+
+parameters:
+  image:
+    type: string
+    label: Image ID
+    description: Image to be used for compute instance
+    default: cirros
+  flavor:
+    type: string
+    label: Instance Type
+    default: 1c05r8d
+  availability_zone:
+    type: string
+    label: Instance Type
+    default: nova
+  network:
+    type: string
+
+
+resources:
+  - server1:
+    type: OS:Nova:Server
+    properties:
+      - flavor: { get_param: flavor }
+        image: { get_param: image }
+        networks:
+          - network: ext-net-154
+          # availability_zone: { get_param: availability_zone }
+
