@@ -1,10 +1,10 @@
 heat_template_version: ocata
- 
+
 description: |
   Simple Heat template to deploy three instances in the same network behind OpenStack Router
- 
+
 parameters:
- 
+
   internal_network_name:
     type: string
     description: Name of the external network

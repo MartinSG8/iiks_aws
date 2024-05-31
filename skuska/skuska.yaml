@@ -1,0 +1,105 @@
+---
+heat_template_version: ocata
+
+description: |
+  Simple Heat script that creates stack acording to exam task
+
+parameters:
+  external_network_name:
+    type: string
+    description: Name of the external network (already present)
+    default: ext-net-154
+
+  internal_network_name:
+    type: string
+    description: Name of the internal network
+    default: private-net
+
+  internal_subnet_cidr:
+    type: string
+    description: Subnet for the internal network
+    default: 10.10.10.0/24
+
+  availability_zone:
+    type: string
+    description: Name of the availability zone
+    default: nova
+
+  image:
+    type: string
+    description: Image to use for the instances
+    default: debian-12-kis
+
+  flavor:
+    type: string
+    description: Flavor for the instances
+    default: 1c05r8d
+
+  default_sec_group:
+    type: string
+    description: Default security group
+    default: default
+
+resources:
+  # network resources
+  internal_network:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: internal_network_name }
+
+  internal_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: internal_network }
+      cidr: { get_param: internal_subnet_cidr }
+      ip_version: 4
+      dns_nameservers: [1.1.1.3]
+
+  openstack_router:
+    type: OS::Neutron::Router
+    properties:
+      name: default_router
+      external_gateway_info: { network: { get_param: external_network_name} }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: openstack_router }
+      subnet_id: { get_resource: internal_subnet }
+
+  server_instance1:
+    type: OS::Nova::Server
+    properties:
+      name: server_instance1
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      networks:
+        - network: { get_resource: internal_network }
+      security_groups:
+        - { get_param: default_sec_group }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/bash
+        sudo apt update -y
+        sudo apt upgrade -y
+        sudo apt install mc -y
+
+  server_instance2:
+    type: OS::Nova::Server
+    properties:
+      name: server_instance2
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      networks:
+        - network: { get_resource: internal_network }
+      security_groups:
+        - { get_param: default_sec_group }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/bash
+        sudo apt update -y
+        sudo apt upgrade -y
+        sudo apt install mc -y
+...

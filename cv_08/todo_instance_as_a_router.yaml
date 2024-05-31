@@ -1,0 +1,90 @@
+heat_template_version: 2013-05-23
+
+description: >
+  Skript definuje topologiu IaaS sluzby, siete a podsiete definuje podla vlastneho uvazenia s danymi obmedzeniami. Nainstaluje na servery vim.
+
+parameters:
+  external_network_name:
+    type: string
+    default: ext-net-154
+    description: Siet do internetu
+  internal_network_name:
+    type: string
+    default: internal_network
+    description: Privatna siet
+
+resources:
+  private_network:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: internal_network_name }
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: private_network }
+      cidr: 192.168.0.0/24
+      ip_version: 4
+      gateway_ip: 192.168.0.1
+      dns_nameservers:
+        - 8.8.8.8
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: router
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+
+  router_gateway:
+    type: OS::Neutron::RouterGateway
+    properties:
+      router_id: { get_resource: router }
+      network: { get_param: external_network_name }
+
+  server1:
+    type: OS::Nova::Server
+    properties:
+      name: server1
+      image: debian-12-kis
+      flavor: 1c05r8d
+      availability_zone: nova
+      networks:
+        - network: { get_resource: private_network }
+      user_data: |
+        #!/bin/bash
+        apt-get update
+        apt-get install -y vim
+
+  server2:
+    type: OS::Nova::Server
+    properties:
+      name: server2
+      image: debian-12-kis
+      flavor: 1c05r8d
+      availability_zone: nova
+      networks:
+        - network: { get_resource: private_network }
+      user_data: |
+        #!/bin/bash
+        apt-get update
+        apt-get install -y vim
+
+  server_router:
+    type: OS::Nova::Server
+    properties:
+      name: server_router
+      image: debian-12-kis
+      flavor: 1c05r8d
+      availability_zone: nova
+      networks:
+        - network: { get_resource: private_network }
+      user_data: |
+        #!/bin/bash
+        apt-get update
+        echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+        sysctl -p
